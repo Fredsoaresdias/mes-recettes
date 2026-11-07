@@ -144,7 +144,7 @@ if menu == "📸 Ajouter une Recette (Photo)":
     
     # Zone pour importer la photo depuis ton téléphone
     uploaded_file = st.file_uploader("Prends en photo ou importe une page de recette", type=["jpg", "jpeg", "png"], key="upload_photo_recette")
-    
+
     if uploaded_file is not None:
         # Affiche un aperçu de la photo que tu viens de choisir
         st.image(uploaded_file, caption="Photo de la recette importée", use_container_width=True)
@@ -153,18 +153,10 @@ if menu == "📸 Ajouter une Recette (Photo)":
         if st.button("✨ Analyser automatiquement la photo", key="btn_lancer_analyse"):
             with st.spinner("Analyse de la photo en cours par l'IA..."):
                 try:
-                    # Appel sécurisé à l'API Gemini configurée dans tes secrets Streamlit
-                    # Configuration de la clé API pour l'IA
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-
-# Utilisation du modèle de vision
-model = genai.GenerativeModel('gemini-1.5-flash')
-response = model.generate_content([image, prompt])
-st.success("Recette analysée avec succès !")
-st.write(response.text)
-
+                    # Configuration de la clé API
+                    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                     
-                    # On envoie l'image et les instructions à l'IA
+                    # On prépare les instructions pour l'IA
                     prompt = (
                         "Analyse cette image de recette de cuisine et extrait précisément : "
                         "1. Le titre exact de la recette\n"
@@ -175,16 +167,16 @@ st.write(response.text)
                         "6. Les étapes de préparation détaillées"
                     )
                     
-                    response = client.models.generate_content(
-                        model='gemini-2.5-flash',
-                        contents=[uploaded_file, prompt]
-                    )
+                    # Appel au modèle de vision
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    response = model.generate_content([uploaded_file, prompt])
                     
                     st.success("Recette analysée avec succès !")
                     st.write(response.text)
                     
                 except Exception as e:
                     st.error(f"Erreur lors de l'analyse : {e}")
+
 
 
 # ---------------------------------------------------------
