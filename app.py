@@ -2,6 +2,7 @@ import datetime
 import streamlit as st
 from google import genai
 from PIL import Image
+ 
 
 
 # Configuration de la page
