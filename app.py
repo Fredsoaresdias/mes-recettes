@@ -56,8 +56,9 @@ menu = st.sidebar.radio(
         "📸 Ajouter une Recette (Photo)",
         "🗓️ Suggestions & Menus",
         "🛒 Liste de Courses",
+        ],
         key="navigation_principale",
-    ],
+    
 )
 
 # ---------------------------------------------------------
