@@ -134,82 +134,45 @@ if menu == "📖 Mes Recettes & Recherche":
 # ---------------------------------------------------------
 # 2. AJOUTER UNE RECETTE (PHOTO / SCAN)
 # ---------------------------------------------------------
-elif menu == "📸 Ajouter une Recette (Photo)":
-    st.title("Ajouter une Recette via une Photo")
-
-    uploaded_file = st.file_uploader(
-        "Prenez en photo ou téléchargez une page de recette (image)",
-        type=["jpg", "jpeg", "png"],
-    )
-
+if menu == "📸 Ajouter une Recette (Photo)":
+    st.header("📸 Ajouter une Recette par Photo")
+    
+    # Zone pour importer la photo depuis ton téléphone
+    uploaded_file = st.file_uploader("Prends en photo ou importe une page de recette", type=["jpg", "jpeg", "png"], key="upload_photo_recette")
+    
     if uploaded_file is not None:
-        st.image(uploaded_file, caption="Photo importée", use_container_width=True)
-        st.info(
-            "Analyse de l'image en cours par l'intelligence artificielle..."
-        )
+        # Affiche un aperçu de la photo que tu viens de choisir
+        st.image(uploaded_file, caption="Photo de la recette importée", use_container_width=True)
+        
+        # Un bouton pour déclencher l'analyse intelligente
+        if st.button("✨ Analyser automatiquement la photo", key="btn_lancer_analyse"):
+            with st.spinner("Analyse de la photo en cours par l'IA..."):
+                try:
+                    # Appel sécurisé à l'API Gemini configurée dans tes secrets Streamlit
+                    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+                    
+                    # On envoie l'image et les instructions à l'IA
+                    prompt = (
+                        "Analyse cette image de recette de cuisine et extrait précisément : "
+                        "1. Le titre exact de la recette\n"
+                        "2. La catégorie (Entrées, Plats, ou Desserts)\n"
+                        "3. La saison idéale (Printemps, Été, Automne, Hiver ou Toutes saisons)\n"
+                        "4. Le temps de préparation total en minutes (chiffre uniquement)\n"
+                        "5. La liste complète des ingrédients (un par ligne)\n"
+                        "6. Les étapes de préparation détaillées"
+                    )
+                    
+                    response = client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=[uploaded_file, prompt]
+                    )
+                    
+                    st.success("Recette analysée avec succès !")
+                    st.write(response.text)
+                    
+                except Exception as e:
+                    st.error(f"Erreur lors de l'analyse : {e}")
 
-        # Simulation d'extraction OCR intelligente
-        titre_ext = "Tarte rustique aux légumes du soleil"
-        cat_ext = "Plats"
-        saison_ext = "Été"
-        temps_ext = "35 min"
-        ing_ext = [
-            "Pâte feuilletée (1)",
-            "Courgettes (2)",
-            "Tomates (3)",
-            "Moutarde à l'ancienne (2 c. à s.)",
-        ]
-        etapes_ext = "1. Dérouler la pâte. 2. Badigeonner de moutarde. 3. Disposer les légumes coupés en rondelles. 4. Cuire 30 min à 180°C."
-
-        st.success("Analyse réussie ! Voici les informations extraites :")
-
-        with st.form("form_validation"):
-            n_titre = st.text_input("Titre de la recette", value=titre_ext)
-            n_cat = st.selectbox(
-                "Catégorie",
-                [
-                    "Entrées",
-                    "Plats",
-                    "Desserts",
-                    "Apéritifs / Snacks",
-                ],
-                index=1,
-            )
-            n_saison = st.selectbox(
-                "Saison idéale",
-                ["Printemps", "Été", "Automne / Hiver", "Toutes saisons"],
-                index=1,
-            )
-            n_temps = st.text_input("Temps de préparation", value=temps_ext)
-
-            st.markdown("**Ingrédients détectés (modifiables) :**")
-            ing_text = st.text_area(
-                "Un ingrédient par ligne", value="\n".join(ing_ext)
-            )
-
-            st.markdown("**Étapes :**")
-            n_etapes = st.text_area("Préparation", value=etapes_ext)
-
-            submitted = st.form_submit_button(
-                "Valider et enregistrer dans mon carnet"
-            )
-            if submitted:
-                nouvelle_recette = {
-                    "id": len(st.session_state.recettes) + 1,
-                    "titre": n_titre,
-                    "categorie": n_cat,
-                    "saison": n_saison,
-                    "temps": n_temps,
-                    "ingredients": [
-                        i.strip() for i in ing_text.split("\n") if i.strip()
-                    ],
-                    "etapes": n_etapes,
-                }
-                st.session_state.recettes.append(nouvelle_recette)
-                st.balloons()
-                st.success(
-                    f"La recette '{n_titre}' a bien été enregistrée et classée dans '{n_cat}' !"
-                )
 
 # ---------------------------------------------------------
 # 3. SUGGESTIONS & MENUS
