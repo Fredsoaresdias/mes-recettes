@@ -154,7 +154,15 @@ if menu == "📸 Ajouter une Recette (Photo)":
             with st.spinner("Analyse de la photo en cours par l'IA..."):
                 try:
                     # Appel sécurisé à l'API Gemini configurée dans tes secrets Streamlit
-                    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+                    # Configuration de la clé API pour l'IA
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+
+# Utilisation du modèle de vision
+model = genai.GenerativeModel('gemini-1.5-flash')
+response = model.generate_content([image, prompt])
+st.success("Recette analysée avec succès !")
+st.write(response.text)
+
                     
                     # On envoie l'image et les instructions à l'IA
                     prompt = (
