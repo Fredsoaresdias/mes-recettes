@@ -162,6 +162,7 @@ if menu == "📸 Ajouter une Recette (Photo)":
                     # Conversion propre de l'image pour l'API moderne
                     img = Image.open(uploaded_file)
                     
+                    # Utilisation du modèle flash standard universel
                     response = client.models.generate_content(
                         model='gemini-2.5-flash',
                         contents=[img, prompt]
