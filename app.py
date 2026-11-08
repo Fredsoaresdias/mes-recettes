@@ -159,9 +159,12 @@ if menu == "📸 Ajouter une Recette (Photo)":
                         "6. Les étapes de préparation détaillées"
                     )
                     
+                    # Conversion propre de l'image pour l'API
+                    img = Image.open(uploaded_file)
+                    
                     response = client.models.generate_content(
                         model='gemini-2.5-flash',
-                        contents=[uploaded_file, prompt]
+                        contents=[img, prompt]
                     )
                     
                     st.success("Recette analysée avec succès !")
