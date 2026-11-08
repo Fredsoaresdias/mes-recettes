@@ -1,4 +1,5 @@
 import datetime
+import io
 import time
 from google import genai
 from PIL import Image
@@ -64,7 +65,7 @@ menu = st.sidebar.radio(
 )
 
 # ---------------------------------------------------------
-# 1. MES RECETTES & RECHERCHE
+# 1. MES RECETTES & RECHERCHE SOUPLE & MODIFICATION
 # ---------------------------------------------------------
 if menu == "📖 Mes Recettes & Recherche":
     st.title("Mon Carnet de Recettes")
@@ -73,7 +74,7 @@ if menu == "📖 Mes Recettes & Recherche":
     with col1:
         recherche = st.text_input(
             "🔍 Rechercher (titre ou ingrédient)", ""
-        ).lower()
+        ).strip().lower()
     with col2:
         filtre_cat = st.selectbox(
             "Filtrer par catégorie",
@@ -93,15 +94,20 @@ if menu == "📖 Mes Recettes & Recherche":
 
     st.markdown("---")
 
-    # Filtrage
+    # Filtrage intelligent et souple (partiel + insensible aux accents/pluriels basiques)
     recettes_filtrees = st.session_state.recettes
     if recherche:
-        recettes_filtrees = [
-            r
-            for r in recettes_filtrees
-            if recherche in r["titre"].lower()
-            or any(recherche in ing.lower() for ing in r["ingredients"])
-        ]
+        mots_cles = recherche.split()
+        resultats_intelligents = []
+        for r in recettes_filtrees:
+            texte_complet = (
+                r["titre"] + " " + " ".join(r["ingredients"]) + " " + r["etapes"]
+            ).lower()
+            # Si tous les mots saisis se trouvent dans la recette (ex: "linguine" ou "palourdes")
+            if all(mot in texte_complet for mot in mots_cles):
+                resultats_intelligents.append(r)
+        recettes_filtrees = resultats_intelligents
+
     if filtre_cat != "Toutes":
         recettes_filtrees = [
             r for r in recettes_filtrees if r["categorie"] == filtre_cat
@@ -127,34 +133,139 @@ if menu == "📖 Mes Recettes & Recherche":
                     st.markdown("**Préparation :**")
                     st.write(r["etapes"])
 
-                if st.button(
-                    f"➕ Ajouter au menu de la semaine", key=f"menu_{r['id']}"
-                ):
-                    st.session_state.menu_semaine.append(r)
-                    st.success(f"'{r['titre']}' a été ajouté à votre menu !")
+                st.markdown("---")
+                col_b1, col_b2 = st.columns(2)
+                with col_b1:
+                    if st.button(
+                        f"➕ Ajouter au menu", key=f"menu_{r['id']}"
+                    ):
+                        st.session_state.menu_semaine.append(r)
+                        st.success(f"'{r['titre']}' a été ajouté à votre menu !")
+                with col_b2:
+                    if st.button(
+                        f"✏️ Modifier cette recette", key=f"edit_btn_{r['id']}"
+                    ):
+                        st.session_state.recette_en_edition = r["id"]
+                        st.rerun()
+
+    # Formulaire d'édition si une recette est sélectionnée pour modification
+    if "recette_en_edition" in st.session_state:
+        id_edit = st.session_state.recette_en_edition
+        recette_cible = next(
+            (item for item in st.session_state.recettes if item["id"] == id_edit),
+            None,
+        )
+
+        if recette_cible:
+            st.markdown("---")
+            st.subheader(
+                f"✏️ Modification de la recette : {recette_cible['titre']}"
+            )
+
+            with st.form(key=f"form_edit_{id_edit}"):
+                nouveau_titre = st.text_input(
+                    "Titre de la recette", value=recette_cible["titre"]
+                )
+                
+                cat_options = ["Entrées", "Plats", "Desserts", "Apéritifs / Snacks"]
+                idx_cat = (
+                    cat_options.index(recette_cible["categorie"])
+                    if recette_cible["categorie"] in cat_options
+                    else 1
+                )
+                nouvelle_cat = st.selectbox(
+                    "Catégorie", cat_options, index=idx_cat
+                )
+
+                saison_options = [
+                    "Printemps",
+                    "Été",
+                    "Automne / Hiver",
+                    "Toutes saisons",
+                ]
+                idx_saison = (
+                    saison_options.index(recette_cible["saison"])
+                    if recette_cible["saison"] in saison_options
+                    else 2
+                )
+                nouvelle_saison = st.selectbox(
+                    "Saison", saison_options, index=idx_saison
+                )
+
+                nouveau_temps = st.text_input(
+                    "Temps de préparation", value=recette_cible["temps"]
+                )
+
+                ingredients_str = "\n".join(recette_cible["ingredients"])
+                nouveaux_ingredients_texte = st.text_area(
+                    "Ingrédients (un par ligne)", value=ingredients_str
+                )
+
+                nouvelles_etapes = st.text_area(
+                    "Étapes de préparation", value=recette_cible["etapes"]
+                )
+
+                col_f1, col_f2 = st.columns(2)
+                with col_f1:
+                    submit_modif = st.form_submit_button(
+                        "💾 Enregistrer les modifications"
+                    )
+                with col_f2:
+                    annuler_modif = st.form_submit_button("❌ Annuler")
+
+                if submit_modif:
+                    recette_cible["titre"] = nouveau_titre
+                    recette_cible["categorie"] = nouvelle_cat
+                    recette_cible["saison"] = nouvelle_saison
+                    recette_cible["temps"] = nouveau_temps
+                    recette_cible["ingredients"] = [
+                        ing.strip()
+                        for ing in nouveaux_ingredients_texte.split("\n")
+                        if ing.strip()
+                    ]
+                    recette_cible["etapes"] = nouvelles_etapes
+
+                    del st.session_state.recette_en_edition
+                    st.success("Modifications enregistrées avec succès !")
+                    st.rerun()
+
+                if annuler_modif:
+                    del st.session_state.recette_en_edition
+                    st.rerun()
 
 # ---------------------------------------------------------
 # 2. AJOUTER UNE RECETTE (PHOTO / SCAN)
 # ---------------------------------------------------------
 if menu == "📸 Ajouter une Recette (Photo)":
     st.header("📸 Ajouter une Recette par Photo")
-    
-    uploaded_file = st.file_uploader("Prends en photo ou importe une page de recette", type=["jpg", "jpeg", "png"], key="upload_photo_recette")
+
+    uploaded_file = st.file_uploader(
+        "Prends en photo ou importe une page de recette",
+        type=["jpg", "jpeg", "png"],
+        key="upload_photo_recette",
+    )
 
     if uploaded_file is not None:
-        st.image(uploaded_file, caption="Photo de la recette importée", width='stretch')
-        
+        st.image(uploaded_file, caption="Photo de la recette importée", width="stretch")
+
         if st.button("✨ Analyser la photo", key="btn_lancer_analyse"):
-            # Utilisation d'un conteneur de statut pour suivre l'étape en cours
             status_container = st.status("🔄 Analyse en cours...", expanded=True)
             try:
-                status_container.write("Initialisation du client IA...")
+                status_container.write("Connexion à l'IA...")
                 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-                
-                status_container.write("Compression et préparation de l'image...")
+
+                status_container.write("Optimisation et compression de l'image...")
                 img = Image.open(uploaded_file)
                 img.thumbnail((800, 800))
-                
+
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+
+                buffer = io.BytesIO()
+                img.save(buffer, format="JPEG", quality=75)
+                buffer.seek(0)
+                img_optimisee = Image.open(buffer)
+
                 prompt = (
                     "Extrais précisément de cette image de recette : \n"
                     "TITRE: [Nom exact de la recette]\n"
@@ -167,43 +278,46 @@ if menu == "📸 Ajouter une Recette (Photo)":
                     "ETAPES:\n"
                     "[Étapes détaillées]"
                 )
-                
-                status_container.write("Envoi à Gemini 3.8 Flash...")
+
+                status_container.write("Envoi à l'IA...")
                 response = client.models.generate_content(
-                    model='gemini-3.8-flash',
-                    contents=[img, prompt]
+                    model="gemini-3.8-flash", contents=[img_optimisee, prompt]
                 )
-                
+
                 if response and response.text:
                     st.session_state.derniere_analyse = response.text
-                    status_container.update(label="✅ Analyse terminée avec succès !", state="complete", expanded=False)
+                    status_container.update(
+                        label="✅ Analyse terminée !", state="complete", expanded=False
+                    )
                     st.rerun()
                 else:
-                    status_container.update(label="❌ Réponse vide de l'IA", state="error")
-                
-            except Exception as e:
-                status_container.update(label=f"❌ Erreur lors de l'analyse", state="error")
-                st.error(f"Détail de l'erreur : {e}")
+                    status_container.update(label="❌ Réponse vide", state="error")
 
-    # Si une analyse est en cache dans la session, on l'affiche avec un bouton d'enregistrement
+            except Exception as e:
+                status_container.update(label="❌ Erreur", state="error")
+                st.error(f"Détail : {e}")
+
     if "derniere_analyse" in st.session_state:
         st.markdown("### 📋 Résultat de l'analyse :")
         st.write(st.session_state.derniere_analyse)
-        
-        if st.button("💾 Enregistrer cette recette dans ma bibliothèque", key="btn_sauver_recette"):
+
+        if st.button(
+            "💾 Enregistrer cette recette dans ma bibliothèque",
+            key="btn_sauver_recette",
+        ):
             texte = st.session_state.derniere_analyse
-            
+
             nouveau_titre = "Recette scannée"
             nouvelle_cat = "Plats"
             nouvelle_saison = "Toutes saisons"
             nouveau_temps = "30 min"
             ingredients_list = []
             etapes_texte = texte
-            
+
             en_cours_ingredients = False
             en_cours_etapes = False
             lignes_etapes = []
-            
+
             for ligne in texte.split("\n"):
                 ligne_clean = ligne.strip()
                 if ligne_clean.startswith("TITRE:"):
@@ -222,17 +336,17 @@ if menu == "📸 Ajouter une Recette (Photo)":
                     en_cours_ingredients = False
                     en_cours_etapes = True
                     continue
-                
+
                 if en_cours_ingredients and ligne_clean.startswith("-"):
                     ingredients_list.append(ligne_clean.lstrip("- ").strip())
                 elif en_cours_etapes and ligne_clean:
                     lignes_etapes.append(ligne_clean)
-            
+
             if not ingredients_list:
                 ingredients_list = ["Ingrédients extraits automatiquement"]
             if lignes_etapes:
                 etapes_texte = "\n".join(lignes_etapes)
-                
+
             nouvel_id = len(st.session_state.recettes) + 1
             nouvelle_recette = {
                 "id": nouvel_id,
@@ -241,11 +355,13 @@ if menu == "📸 Ajouter une Recette (Photo)":
                 "saison": nouvelle_saison,
                 "temps": nouveau_temps,
                 "ingredients": ingredients_list,
-                "etapes": etapes_texte
+                "etapes": etapes_texte,
             }
-            
+
             st.session_state.recettes.append(nouvelle_recette)
-            st.success(f"🎉 '{nouveau_titre}' a été enregistrée avec succès dans votre bibliothèque !")
+            st.success(
+                f"🎉 '{nouveau_titre}' a été enregistrée avec succès dans votre bibliothèque !"
+            )
             del st.session_state.derniere_analyse
             st.rerun()
 
@@ -267,6 +383,7 @@ elif menu == "🗓️ Suggestions & Menus":
         )
         if st.button("Suggérer une recette au hasard"):
             import random
+
             if st.session_state.recettes:
                 recette_sugg = random.choice(st.session_state.recettes)
                 st.write(f"✨ Nous vous conseillons : **{recette_sugg['titre']}**")
@@ -284,7 +401,9 @@ elif menu == "🗓️ Suggestions & Menus":
             st.write("💡 Recettes réalisables avec ces ingrédients :")
             for r in st.session_state.recettes:
                 if any(
-                    any(ing.lower().find(inf.lower()) != -1 for inf in ingredients_frigo)
+                    any(
+                        inf.lower() in ing.lower() for inf in ingredients_frigo
+                    )
                     for ing in r["ingredients"]
                 ):
                     st.write(f"- ✅ **{r['titre']}**")
