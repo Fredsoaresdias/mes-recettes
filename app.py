@@ -87,7 +87,7 @@ if menu == "📖 Mes Recettes & Recherche":
     with col3:
         filtre_saison = st.selectbox(
             "Filtrer par saison",
-            ["Toutes", "Printemps", "Été", "Automne / Hiver"],
+            ["Toutes", "Printemps", "Été", "Automne / Hiver", "Toutes saisons"],
         )
 
     st.markdown("---")
@@ -146,33 +146,99 @@ if menu == "📸 Ajouter une Recette (Photo)":
         if st.button("✨ Analyser automatiquement la photo", key="btn_lancer_analyse"):
             with st.spinner("Analyse de la photo en cours par l'IA..."):
                 try:
-                    # Initialisation du client officiel Google GenAI
                     client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
                     
                     prompt = (
-                        "Analyse cette image de recette de cuisine et extrait précisément : "
-                        "1. Le titre exact de la recette\n"
-                        "2. La catégorie (Entrées, Plats, ou Desserts)\n"
-                        "3. La saison idéale (Printemps, Été, Automne, Hiver ou Toutes saisons)\n"
-                        "4. Le temps de préparation total en minutes (chiffre uniquement)\n"
-                        "5. La liste complète des ingrédients (un par ligne)\n"
-                        "6. Les étapes de préparation détaillées"
+                        "Analyse cette image de recette de cuisine et réponds STRICTEMENT sous ce format exact : \n"
+                        "TITRE: [Nom exact de la recette]\n"
+                        "CATEGORIE: [Choisis strictement entre: Entrées, Plats, ou Desserts]\n"
+                        "SAISON: [Choisis strictement entre: Printemps, Été, Automne / Hiver, ou Toutes saisons]\n"
+                        "TEMPS: [ex: 30 min]\n"
+                        "INGREDIENTS:\n"
+                        "- Ingrédient 1\n"
+                        "- Ingrédient 2\n"
+                        "ETAPES:\n"
+                        "[Étapes détaillées de préparation]"
                     )
                     
-                    # Conversion propre de l'image pour l'API moderne
                     img = Image.open(uploaded_file)
-                    
-                    # Utilisation du modèle requis gemini-3.8-flash
                     response = client.models.generate_content(
                         model='gemini-3.8-flash',
                         contents=[img, prompt]
                     )
                     
+                    st.session_state.derniere_analyse = response.text
                     st.success("Recette analysée avec succès !")
-                    st.write(response.text)
                     
                 except Exception as e:
                     st.error(f"Erreur lors de l'analyse : {e}")
+
+    # Si une analyse est en cache dans la session, on l'affiche avec un bouton d'enregistrement
+    if "derniere_analyse" in st.session_state:
+        st.markdown("### 📋 Résultat de l'analyse :")
+        st.write(st.session_state.derniere_analyse)
+        
+        if st.button("💾 Enregistrer cette recette dans ma bibliothèque", key="btn_sauver_recette"):
+            texte = st.session_state.derniere_analyse
+            
+            # Valeurs par défaut
+            nouveau_titre = "Recette scannée"
+            nouvelle_cat = "Plats"
+            nouvelle_saison = "Toutes saisons"
+            nouveau_temps = "30 min"
+            ingredients_list = []
+            etapes_texte = texte
+            
+            # Parsing simple du format structuré renvoyé par l'IA
+            en_cours_ingredients = False
+            en_cours_etapes = False
+            lignes_etapes = []
+            
+            for ligne in texte.split("\n"):
+                ligne_clean = ligne.strip()
+                if ligne_clean.startswith("TITRE:"):
+                    nouveau_titre = ligne_clean.replace("TITRE:", "").strip()
+                elif ligne_clean.startswith("CATEGORIE:"):
+                    nouvelle_cat = ligne_clean.replace("CATEGORIE:", "").strip()
+                elif ligne_clean.startswith("SAISON:"):
+                    nouvelle_saison = ligne_clean.replace("SAISON:", "").strip()
+                elif ligne_clean.startswith("TEMPS:"):
+                    nouveau_temps = ligne_clean.replace("TEMPS:", "").strip()
+                elif ligne_clean.startswith("INGREDIENTS:"):
+                    en_cours_ingredients = True
+                    en_cours_etapes = False
+                    continue
+                elif ligne_clean.startswith("ETAPES:"):
+                    en_cours_ingredients = False
+                    en_cours_etapes = True
+                    continue
+                
+                if en_cours_ingredients and ligne_clean.startswith("-"):
+                    ingredients_list.append(ligne_clean.lstrip("- ").strip())
+                elif en_cours_etapes and ligne_clean:
+                    lignes_etapes.append(ligne_clean)
+            
+            if not ingredients_list:
+                ingredients_list = ["Ingrédients extraits automatiquement (voir détails)"]
+            if lignes_etapes:
+                etapes_texte = "\n".join(lignes_etapes)
+                
+            nouvel_id = len(st.session_state.recettes) + 1
+            nouvelle_recette = {
+                "id": nouvel_id,
+                "titre": nouveau_titre,
+                "categorie": nouvelle_cat,
+                "saison": nouvelle_saison,
+                "temps": nouveau_temps,
+                "ingredients": ingredients_list,
+                "etapes": etapes_texte
+            }
+            
+            st.session_state.recettes.append(nouvelle_recette)
+            st.success(f"🎉 '{nouveau_titre}' a été enregistrée avec succès dans votre bibliothèque !")
+            # Nettoyage du cache d'analyse
+            del st.session_state.derniere_analyse
+            st.rerun()
 
 # ---------------------------------------------------------
 # 3. SUGGESTIONS & MENUS
@@ -186,27 +252,24 @@ elif menu == "🗓️ Suggestions & Menus":
     col1, col2 = st.columns(2)
 
     with col1:
-        st.info("🍂 **Suggestion du moment (Automne)**")
+        st.info("🍂 **Suggestion du moment**")
         st.write(
-            "Puisque c'est la saison des courges et des plats réconfortants :"
+            "Puisque c'est la saison, profitez de vos recettes enregistrées !"
         )
-        if st.button("Suggérer un menu d'automne"):
-            recette_sugg = [
-                r
-                for r in st.session_state.recettes
-                if "Automne" in r["saison"]
-            ]
-            if recette_sugg:
-                st.write(f"✨ Nous vous conseillons : **{recette_sugg[0]['titre']}**")
+        if st.button("Suggérer une recette au hasard"):
+            import random
+            if st.session_state.recettes:
+                recette_sugg = random.choice(st.session_state.recettes)
+                st.write(f"✨ Nous vous conseillons : **{recette_sugg['titre']}**")
                 if st.button("Ajouter cette suggestion au menu"):
-                    st.session_state.menu_semaine.append(recette_sugg[0])
+                    st.session_state.menu_semaine.append(recette_sugg)
                     st.success("Ajouté !")
 
     with col2:
         st.info("🥦 **Anti-gaspillage / Ingrédients dispos**")
         ingredients_frigo = st.multiselect(
             "Qu'avez-vous dans le frigo à épuiser ?",
-            ["Courge butternut", "Tomates", "Crème fraîche", "Œufs", "Fromage"],
+            ["Tomates", "Crème fraîche", "Œufs", "Fromage", "Courge butternut"],
         )
         if ingredients_frigo:
             st.write("💡 Recettes réalisables avec ces ingrédients :")
