@@ -3,9 +3,6 @@ from google import genai
 from PIL import Image
 import streamlit as st
 
- 
-
-
 # Configuration de la page
 st.set_page_config(
     page_title="Mon Carnet de Recettes Intelligent",
@@ -61,9 +58,8 @@ menu = st.sidebar.radio(
         "📸 Ajouter une Recette (Photo)",
         "🗓️ Suggestions & Menus",
         "🛒 Liste de Courses",
-        ],
-        key="navigation_principale",
-    
+    ],
+    key="navigation_principale",
 )
 
 # ---------------------------------------------------------
@@ -142,21 +138,17 @@ if menu == "📖 Mes Recettes & Recherche":
 if menu == "📸 Ajouter une Recette (Photo)":
     st.header("📸 Ajouter une Recette par Photo")
     
-    # Zone pour importer la photo depuis ton téléphone
     uploaded_file = st.file_uploader("Prends en photo ou importe une page de recette", type=["jpg", "jpeg", "png"], key="upload_photo_recette")
 
     if uploaded_file is not None:
-        # Affiche un aperçu de la photo que tu viens de choisir
         st.image(uploaded_file, caption="Photo de la recette importée", use_container_width=True)
         
-        # Un bouton pour déclencher l'analyse intelligente
         if st.button("✨ Analyser automatiquement la photo", key="btn_lancer_analyse"):
             with st.spinner("Analyse de la photo en cours par l'IA..."):
                 try:
-                    # Configuration de la clé API
-                    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                    # Initialisation du client officiel Google GenAI
+                    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
                     
-                    # On prépare les instructions pour l'IA
                     prompt = (
                         "Analyse cette image de recette de cuisine et extrait précisément : "
                         "1. Le titre exact de la recette\n"
@@ -167,17 +159,16 @@ if menu == "📸 Ajouter une Recette (Photo)":
                         "6. Les étapes de préparation détaillées"
                     )
                     
-                    # Appel au modèle de vision
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    response = model.generate_content([uploaded_file, prompt])
+                    response = client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=[uploaded_file, prompt]
+                    )
                     
                     st.success("Recette analysée avec succès !")
                     st.write(response.text)
                     
                 except Exception as e:
                     st.error(f"Erreur lors de l'analyse : {e}")
-
-
 
 # ---------------------------------------------------------
 # 3. SUGGESTIONS & MENUS
@@ -255,13 +246,11 @@ elif menu == "🛒 Liste de Courses":
             "Voici la liste consolidée des ingrédients nécessaires pour vos menus de la semaine :"
         )
 
-        # Extraction et fusion des ingrédients
         tous_les_ingredients = []
         for r in st.session_state.menu_semaine:
             for ing in r["ingredients"]:
                 tous_les_ingredients.append(ing)
 
-        # Affichage sous forme de liste à cocher
         st.markdown("---")
         for i, ingredient in enumerate(tous_les_ingredients):
             st.checkbox(f"{ingredient}", key=f"course_{i}")
@@ -269,5 +258,3 @@ elif menu == "🛒 Liste de Courses":
         if st.button("🗑️ Vider la liste / Réinitialiser le menu"):
             st.session_state.menu_semaine = []
             st.rerun()
-
-    
