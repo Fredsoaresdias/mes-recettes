@@ -1,4 +1,5 @@
 import datetime
+import time
 from google import genai
 from PIL import Image
 import streamlit as st
@@ -143,38 +144,38 @@ if menu == "📸 Ajouter une Recette (Photo)":
     if uploaded_file is not None:
         st.image(uploaded_file, caption="Photo de la recette importée", width='stretch')
         
-        if st.button("✨ Analyser automatiquement la photo", key="btn_lancer_analyse"):
-            with st.spinner("Analyse rapide en cours..."):
+        if st.button("⚡ Analyse ultra-rapide", key="btn_lancer_analyse"):
+            with st.spinner("Analyse éclair en cours..."):
                 try:
                     client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
                     
-                    # 1. Ouverture et redimensionnement intelligent de l'image (accélération majeure)
+                    # Compression agressive et instantanée pour réduire le poids de l'image à analyser
                     img = Image.open(uploaded_file)
-                    img.thumbnail((1024, 1024))  # Réduit les gros fichiers pour un traitement instantané par l'IA
+                    img.thumbnail((800, 800))
                     
                     prompt = (
-                        "Analyse cette image de recette de cuisine et réponds STRICTEMENT sous ce format : \n"
-                        "TITRE: [Nom exact]\n"
+                        "Extrais rapidement de cette image : \n"
+                        "TITRE: [Nom]\n"
                         "CATEGORIE: [Entrées, Plats, ou Desserts]\n"
                         "SAISON: [Printemps, Été, Automne / Hiver, ou Toutes saisons]\n"
                         "TEMPS: [ex: 30 min]\n"
                         "INGREDIENTS:\n"
                         "- Ingrédient 1\n"
-                        "- Ingrédient 2\n"
                         "ETAPES:\n"
-                        "[Étapes de préparation]"
+                        "[Étapes courtes]"
                     )
                     
                     response = client.models.generate_content(
-                        model='gemini-3.8-flash',
+                        model='gemini-2.5-flash',
                         contents=[img, prompt]
                     )
                     
-                    st.session_state.derniere_analyse = response.text
-                    st.success("Recette analysée avec succès !")
+                    if response:
+                        st.session_state.derniere_analyse = response.text
+                        st.success("Analyse terminée !")
                     
                 except Exception as e:
-                    st.error(f"Erreur lors de l'analyse : {e}")
+                    st.error(f"Erreur : {e}")
 
     # Si une analyse est en cache dans la session, on l'affiche avec un bouton d'enregistrement
     if "derniere_analyse" in st.session_state:
