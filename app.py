@@ -145,37 +145,45 @@ if menu == "📸 Ajouter une Recette (Photo)":
         st.image(uploaded_file, caption="Photo de la recette importée", width='stretch')
         
         if st.button("✨ Analyser la photo", key="btn_lancer_analyse"):
-            with st.spinner("Analyse en cours..."):
-                try:
-                    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-                    
-                    # Compression de l'image pour accélérer l'envoi et le traitement
-                    img = Image.open(uploaded_file)
-                    img.thumbnail((800, 800))
-                    
-                    prompt = (
-                        "Extrais de cette image : \n"
-                        "TITRE: [Nom]\n"
-                        "CATEGORIE: [Entrées, Plats, ou Desserts]\n"
-                        "SAISON: [Printemps, Été, Automne / Hiver, ou Toutes saisons]\n"
-                        "TEMPS: [ex: 30 min]\n"
-                        "INGREDIENTS:\n"
-                        "- Ingrédient 1\n"
-                        "ETAPES:\n"
-                        "[Étapes courtes]"
-                    )
-                    
-                    response = client.models.generate_content(
-                        model='gemini-3.8-flash',
-                        contents=[img, prompt]
-                    )
-                    
-                    if response:
-                        st.session_state.derniere_analyse = response.text
-                        st.success("Analyse terminée !")
-                    
-                except Exception as e:
-                    st.error(f"Erreur : {e}")
+            # Utilisation d'un conteneur de statut pour suivre l'étape en cours
+            status_container = st.status("🔄 Analyse en cours...", expanded=True)
+            try:
+                status_container.write("Initialisation du client IA...")
+                client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+                
+                status_container.write("Compression et préparation de l'image...")
+                img = Image.open(uploaded_file)
+                img.thumbnail((800, 800))
+                
+                prompt = (
+                    "Extrais précisément de cette image de recette : \n"
+                    "TITRE: [Nom exact de la recette]\n"
+                    "CATEGORIE: Entrées, Plats, ou Desserts\n"
+                    "SAISON: Printemps, Été, Automne / Hiver, ou Toutes saisons\n"
+                    "TEMPS: [ex: 30 min]\n"
+                    "INGREDIENTS:\n"
+                    "- Ingrédient 1\n"
+                    "- Ingrédient 2\n"
+                    "ETAPES:\n"
+                    "[Étapes détaillées]"
+                )
+                
+                status_container.write("Envoi à Gemini 3.8 Flash...")
+                response = client.models.generate_content(
+                    model='gemini-3.8-flash',
+                    contents=[img, prompt]
+                )
+                
+                if response and response.text:
+                    st.session_state.derniere_analyse = response.text
+                    status_container.update(label="✅ Analyse terminée avec succès !", state="complete", expanded=False)
+                    st.rerun()
+                else:
+                    status_container.update(label="❌ Réponse vide de l'IA", state="error")
+                
+            except Exception as e:
+                status_container.update(label=f"❌ Erreur lors de l'analyse", state="error")
+                st.error(f"Détail de l'erreur : {e}")
 
     # Si une analyse est en cache dans la session, on l'affiche avec un bouton d'enregistrement
     if "derniere_analyse" in st.session_state:
