@@ -1,5 +1,5 @@
 import datetime
-import google.generativeai as genai
+from google import genai
 from PIL import Image
 import streamlit as st
 
@@ -141,13 +141,13 @@ if menu == "📸 Ajouter une Recette (Photo)":
     uploaded_file = st.file_uploader("Prends en photo ou importe une page de recette", type=["jpg", "jpeg", "png"], key="upload_photo_recette")
 
     if uploaded_file is not None:
-        st.image(uploaded_file, caption="Photo de la recette importée", use_container_width=True)
+        st.image(uploaded_file, caption="Photo de la recette importée", width='stretch')
         
         if st.button("✨ Analyser automatiquement la photo", key="btn_lancer_analyse"):
             with st.spinner("Analyse de la photo en cours par l'IA..."):
                 try:
-                    # Configuration et appel sécurisé avec la bibliothèque stable
-                    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                    # Initialisation du client officiel Google GenAI
+                    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
                     
                     prompt = (
                         "Analyse cette image de recette de cuisine et extrait précisément : "
@@ -159,10 +159,10 @@ if menu == "📸 Ajouter une Recette (Photo)":
                         "6. Les étapes de préparation détaillées"
                     )
                     
-                    # Chargement de l'image via Pillow pour le modèle
-                    img = Image.open(uploaded_file)
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    response = model.generate_content([img, prompt])
+                    response = client.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=[uploaded_file, prompt]
+                    )
                     
                     st.success("Recette analysée avec succès !")
                     st.write(response.text)
