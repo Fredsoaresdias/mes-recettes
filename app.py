@@ -159,7 +159,7 @@ if menu == "📸 Ajouter une Recette (Photo)":
                         "6. Les étapes de préparation détaillées"
                     )
                     
-                    # Conversion propre de l'image pour l'API
+                    # Conversion propre de l'image pour l'API moderne
                     img = Image.open(uploaded_file)
                     
                     response = client.models.generate_content(
