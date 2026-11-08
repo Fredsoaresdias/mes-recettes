@@ -144,17 +144,17 @@ if menu == "📸 Ajouter une Recette (Photo)":
     if uploaded_file is not None:
         st.image(uploaded_file, caption="Photo de la recette importée", width='stretch')
         
-        if st.button("⚡ Analyse ultra-rapide", key="btn_lancer_analyse"):
-            with st.spinner("Analyse éclair en cours..."):
+        if st.button("✨ Analyser la photo", key="btn_lancer_analyse"):
+            with st.spinner("Analyse en cours..."):
                 try:
                     client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
                     
-                    # Compression agressive et instantanée pour réduire le poids de l'image à analyser
+                    # Compression de l'image pour accélérer l'envoi et le traitement
                     img = Image.open(uploaded_file)
                     img.thumbnail((800, 800))
                     
                     prompt = (
-                        "Extrais rapidement de cette image : \n"
+                        "Extrais de cette image : \n"
                         "TITRE: [Nom]\n"
                         "CATEGORIE: [Entrées, Plats, ou Desserts]\n"
                         "SAISON: [Printemps, Été, Automne / Hiver, ou Toutes saisons]\n"
@@ -166,7 +166,7 @@ if menu == "📸 Ajouter une Recette (Photo)":
                     )
                     
                     response = client.models.generate_content(
-                        model='gemini-2.5-flash',
+                        model='gemini-3.8-flash',
                         contents=[img, prompt]
                     )
                     
