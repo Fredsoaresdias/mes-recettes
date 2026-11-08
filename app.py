@@ -144,24 +144,27 @@ if menu == "📸 Ajouter une Recette (Photo)":
         st.image(uploaded_file, caption="Photo de la recette importée", width='stretch')
         
         if st.button("✨ Analyser automatiquement la photo", key="btn_lancer_analyse"):
-            with st.spinner("Analyse de la photo en cours par l'IA..."):
+            with st.spinner("Analyse rapide en cours..."):
                 try:
                     client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
                     
+                    # 1. Ouverture et redimensionnement intelligent de l'image (accélération majeure)
+                    img = Image.open(uploaded_file)
+                    img.thumbnail((1024, 1024))  # Réduit les gros fichiers pour un traitement instantané par l'IA
+                    
                     prompt = (
-                        "Analyse cette image de recette de cuisine et réponds STRICTEMENT sous ce format exact : \n"
-                        "TITRE: [Nom exact de la recette]\n"
-                        "CATEGORIE: [Choisis strictement entre: Entrées, Plats, ou Desserts]\n"
-                        "SAISON: [Choisis strictement entre: Printemps, Été, Automne / Hiver, ou Toutes saisons]\n"
+                        "Analyse cette image de recette de cuisine et réponds STRICTEMENT sous ce format : \n"
+                        "TITRE: [Nom exact]\n"
+                        "CATEGORIE: [Entrées, Plats, ou Desserts]\n"
+                        "SAISON: [Printemps, Été, Automne / Hiver, ou Toutes saisons]\n"
                         "TEMPS: [ex: 30 min]\n"
                         "INGREDIENTS:\n"
                         "- Ingrédient 1\n"
                         "- Ingrédient 2\n"
                         "ETAPES:\n"
-                        "[Étapes détaillées de préparation]"
+                        "[Étapes de préparation]"
                     )
                     
-                    img = Image.open(uploaded_file)
                     response = client.models.generate_content(
                         model='gemini-3.8-flash',
                         contents=[img, prompt]
@@ -181,7 +184,6 @@ if menu == "📸 Ajouter une Recette (Photo)":
         if st.button("💾 Enregistrer cette recette dans ma bibliothèque", key="btn_sauver_recette"):
             texte = st.session_state.derniere_analyse
             
-            # Valeurs par défaut
             nouveau_titre = "Recette scannée"
             nouvelle_cat = "Plats"
             nouvelle_saison = "Toutes saisons"
@@ -189,7 +191,6 @@ if menu == "📸 Ajouter une Recette (Photo)":
             ingredients_list = []
             etapes_texte = texte
             
-            # Parsing simple du format structuré renvoyé par l'IA
             en_cours_ingredients = False
             en_cours_etapes = False
             lignes_etapes = []
@@ -219,7 +220,7 @@ if menu == "📸 Ajouter une Recette (Photo)":
                     lignes_etapes.append(ligne_clean)
             
             if not ingredients_list:
-                ingredients_list = ["Ingrédients extraits automatiquement (voir détails)"]
+                ingredients_list = ["Ingrédients extraits automatiquement"]
             if lignes_etapes:
                 etapes_texte = "\n".join(lignes_etapes)
                 
@@ -236,7 +237,6 @@ if menu == "📸 Ajouter une Recette (Photo)":
             
             st.session_state.recettes.append(nouvelle_recette)
             st.success(f"🎉 '{nouveau_titre}' a été enregistrée avec succès dans votre bibliothèque !")
-            # Nettoyage du cache d'analyse
             del st.session_state.derniere_analyse
             st.rerun()
 
